@@ -23,6 +23,7 @@ import {
 } from "@react-navigation/native"; // Import useNavigation hook
 import * as Progress from "react-native-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
+import NetInfo from "@react-native-community/netinfo";
 
 import GroupPressable from "../assets/js/GroupPressable";
 import {
@@ -46,6 +47,28 @@ let groupsData = [];
 let deviceCacheRef = {
   devices: [],
   timestamp: null,
+  scanKey: "",
+};
+
+const getCandidateSubnets = async () => {
+  const fallbackSubnets = ["192.168.0", "192.168.1"];
+
+  try {
+    const netState = await NetInfo.fetch();
+    const ipAddress = netState?.details?.ipAddress;
+
+    if (!ipAddress) return fallbackSubnets;
+
+    const octets = ipAddress.split(".");
+    const isIPv4 = octets.length === 4 && octets.every((o) => /^\d+$/.test(o));
+    if (!isIPv4) return fallbackSubnets;
+
+    const primarySubnet = `${octets[0]}.${octets[1]}.${octets[2]}`;
+    return Array.from(new Set([primarySubnet, ...fallbackSubnets]));
+  } catch (error) {
+    console.log("Failed to detect local subnet:", error);
+    return fallbackSubnets;
+  }
 };
 
 // Network Scanner Function
@@ -61,18 +84,22 @@ const fetchWithTimeout = (url, timeout = 500) => {
 };
 
 const scanNetwork = async (setDevicesList, setMasterAPI) => {
+  const subnets = await getCandidateSubnets();
+  const scanKey = subnets.join(",");
+
   // Check cache first
   const now = Date.now();
   if (
     deviceCacheRef.devices.length > 0 &&
-    now - deviceCacheRef.timestamp < CACHE_DURATION
+    now - deviceCacheRef.timestamp < CACHE_DURATION &&
+    deviceCacheRef.scanKey === scanKey
   ) {
     console.log("Using cached devices");
     setDevicesList(deviceCacheRef.devices);
     return;
   }
 
-  console.log("Starting network scan...");
+  console.log(`Starting network scan on subnets: ${scanKey}`);
   const foundDevices = [];
   const MAX_CONCURRENT = 30;
 
@@ -97,7 +124,9 @@ const scanNetwork = async (setDevicesList, setMasterAPI) => {
     }
   };
 
-  const ips = Array.from({ length: 255 }, (_, idx) => `192.168.0.${idx + 1}`);
+  const ips = subnets.flatMap((subnet) =>
+    Array.from({ length: 255 }, (_, idx) => `${subnet}.${idx + 1}`)
+  );
 
   // Process in chunks to bound concurrency
   for (let i = 0; i < ips.length; i += MAX_CONCURRENT) {
@@ -111,6 +140,7 @@ const scanNetwork = async (setDevicesList, setMasterAPI) => {
   deviceCacheRef = {
     devices: foundDevices,
     timestamp: Date.now(),
+    scanKey,
   };
 
   console.log(`Network scan complete. Found ${foundDevices.length} devices.`);
