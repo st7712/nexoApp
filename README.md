@@ -36,7 +36,7 @@ The app communicates with the Nexo Speaker's FastAPI backend using **AJAX**, ens
 
 ## Installation & Setup
 
-The easiest way to install and run the app is by installing a prebuilt APK file downloadable [here](https://stito.eu.org/projects/NexoApp/nexo.apk).
+The easiest way to install and run the app is by installing a prebuilt APK file downloadable [here](https://github.com/st7712/nexoApp/releases/latest).
 
 **However,**
 
@@ -48,7 +48,7 @@ if you want to run the app locally for development or testing, follow these step
 
 **1. Clone the repository:**
 ```bash
-git clone [https://github.com/st7712/nexoApp.git](https://github.com/st7712/nexoApp.git)
+git clone https://github.com/st7712/nexoApp.git
 cd nexoApp
 ```
 
